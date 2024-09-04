@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PSC Qops Callouts</title>
+  <style>
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+    }
+    th {
+      background-color: #f2f2f2;
+      cursor: pointer;
+    }
+    td {
+      word-wrap: break-word;
+    }
+    .marquee span {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .container {
+      padding: 20px;
+    }
+    .comment-form {
+      margin-top: 20px;
+    }
+    .comment-form label {
+      display: inline-block;
+      width: 100px;
+      margin-right: 10px;
+    }
+    .comment-form input, .comment-form textarea {
+      width: 100%;
+      padding: 8px;
+      margin-top: 5px;
+      display: inline-block;
+    }
+    .comment-form button {
+      margin-top: 10px;
+      padding: 10px 20px;
+    }
+    .form-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .form-row textarea {
+      height: 80px;
+    }
+    .form-inline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .form-inline .form-row {
+      flex: 1;
+      min-width: 150px;
+    }
+    .form-inline button {
+      flex: 0 1 100%;
+      max-width: 200px;
+    }
+    .table-container {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div class="marquee">
+    <span>PSC Qops Callouts</span>
+  </div>
+  <div class="container">
+    <h1>Welcome to the Comment Section</h1>
+    <div class="table-container">
+      <table id="comments-table">
+        <thead>
+          <tr>
+            <th>Task</th>
+            <th>Program</th>
+            <th>Metric</th>
+            <th onclick="sortComments()">Period</th>
+            <th>Period Type</th>
+            <th>Callout</th>
+            <th>User ID</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="comments-tbody">
+          <!-- Comments will be dynamically added here -->
+        </tbody>
+      </table>
+    </div>
+    <button onclick="exportTableToXLSX('comments.xlsx')">Export to XLSX</button>
+    <div class="comment-form">
+      <h2>Add a Comment</h2>
+      <form id="comment-form" onsubmit="addComment(event)" class="form-inline">
+        <div class="form-row">
+          <label for="task">Task:</label>
+          <input type="text" id="task" name="task" required>
+        </div>
+        <div class="form-row">
+          <label for="program">Program:</label>
+          <input type="text" id="program" name="program" required>
+        </div>
+        <div class="form-row">
+          <label for="metric">Metric:</label>
+          <input type="text" id="metric" name="metric" required>
+        </div>
+        <div class="form-row">
+          <label for="period">Period:</label>
+          <input type="text" id="period" name="period" required>
+        </div>
+        <div class="form-row">
+          <label for="period_type">Period Type:</label>
+          <input type="text" id="period_type" name="period_type" required>
+        </div>
+        <div class="form-row">
+          <label for="callout">Callout:</label>
+          <textarea id="callout" name="callout" required></textarea>
+        </div>
+        <div class="form-row">
+          <label for="user_id">User ID:</label>
+          <input type="text" id="user_id" name="user_id" required>
+        </div>
+        <button type="submit">Submit</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script>
+    let sortOrder = 'desc';
+
+    function loadComments() {
+      const comments = JSON.parse(localStorage.getItem("comments")) || [];
+      const commentsTable = document.getElementById("comments-tbody");
+      commentsTable.innerHTML = "";
+
+      comments.sort((a, b) => {
+        const periodA = a.period.toLowerCase();
+        const periodB = b.period.toLowerCase();
+        return sortOrder === 'desc' ? periodB.localeCompare(periodA) : periodA.localeCompare(periodB);
+      }).forEach(comment => {
+        const commentRow = createCommentRow(comment);
+        commentsTable.appendChild(commentRow);
+      });
+    }
+
+    function sortComments() {
+      sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+      loadComments();
+    }
+
+    function createCommentRow(comment) {
+      const commentRow = document.createElement("tr");
+      commentRow.innerHTML = `
+        <td>${comment.task}</td>
+        <td>${comment.program}</td>
+        <td>${comment.metric}</td>
+        <td>${comment.period}</td>
+        <td>${comment.period_type}</td>
+        <td>${comment.callout}</td>
+        <td>${comment.user_id}</td>
+        <td>
+          <button onclick="editComment(this)">Edit</button>
+          <button onclick="deleteComment(this)">Delete</button>
+        </td>
+      `;
+      commentRow.dataset.period = comment.period; // Store the period as a data attribute
+      return commentRow;
+    }
+
+    function addComment(event) {
+      event.preventDefault();
+
+      // Get the form data
+      const task = document.getElementById("task").value;
+      const program = document.getElementById("program").value;
+      const metric = document.getElementById("metric").value;
+      const period = document.getElementById("period").value;
+      const period_type = document.getElementById("period_type").value;
+      const callout = document.getElementById("callout").value;
+      const user_id = document.getElementById("user_id").value;
+
+      // Save the comment to local storage
+      saveComment(task, program, metric, period, period_type, callout, user_id);
+
+      // Reload the comments to reflect the new addition
+      loadComments();
+
+      // Clear the form fields
+      document.getElementById("comment-form").reset();
+    }
+
+    function saveComment(task, program, metric, period, period_type, callout, user_id) {
+      const comment = {
+        task,
+        program,
+        metric,
+        period,
+        period_type,
+        callout,
+        user_id
+      };
+      const comments = JSON.parse(localStorage.getItem("comments")) || [];
+      comments.push(comment);
+      localStorage.setItem("comments", JSON.stringify(comments));
+    }
+
+    function editComment(button) {
+      const commentRow = button.closest("tr");
+      const [task, program, metric, period, period_type, callout, user_id] = commentRow.children;
+
+      // Populate the form fields with the comment data
+      document.getElementById("task").value = task.textContent;
+      document.getElementById("program").value = program.textContent;
+      document.getElementById("metric").value = metric.textContent;
+      document.getElementById("period").value = period.textContent;
+      document.getElementById("period_type").value = period_type.textContent;
+      document.getElementById("callout").value = callout.textContent;
+      document.getElementById("user_id").value = user_id.textContent;
+
+      // Remove the comment row
+      deleteComment(button);
+    }
+
+    function deleteComment(button) {
+      const commentRow = button.closest("tr");
+      const period = commentRow.dataset.period;
+
+      // Remove the comment from the local storage
+      const comments = JSON.parse(localStorage.getItem("comments"));
+      const index = comments.findIndex(comment => comment.period === period);
+      comments.splice(index, 1);
+      localStorage.setItem("comments", JSON.stringify(comments));
+
+      // Remove the comment row from the table
+      commentRow.remove();
+    }
+
+    function exportTableToXLSX(filename) {
+      const comments = JSON.parse(localStorage.getItem("comments")) || [];
+      const ws_data = [
+        ["Task", "Program", "Metric", "Period", "Period Type", "Callout", "User ID"]
+      ];
+
+      comments.forEach(comment => {
+        ws_data.push([
+          comment.task,
+          comment.program,
+          comment.metric,
+          comment.period,
+          comment.period_type,
+          comment.callout,
+          comment.user_id
+        ]);
+      });
+
+      const ws = XLSX.utils.aoa_to_sheet(ws_data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Comments");
+
+      XLSX.writeFile(wb, filename);
+    }
+
+    loadComments(); // Load comments when the page loads
+  </script>
+</body>
+</html>
+
